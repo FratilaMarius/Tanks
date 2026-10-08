@@ -17,6 +17,16 @@
 #define NR_MAX_PLAYERS 2
 #define MAP_SIZE_SIDE 10 // nr of cells
 
+typedef enum {
+  up,
+  down,
+  left, 
+  right,
+
+  fire,
+  none
+} Direction;
+
 typedef struct {
     char up;
     char down;
@@ -29,6 +39,8 @@ typedef struct {
     int PosY;
 } Vector2;
 
+
+#define WALL '0'
 typedef struct {
     Vector2 Coordinates;
     char value;
@@ -38,6 +50,7 @@ typedef struct {
     Vector2 Coordinates;
     char playerCharacter;
     Controls playerControls;
+    Direction LastMove;
 } Player;
 
 typedef struct {

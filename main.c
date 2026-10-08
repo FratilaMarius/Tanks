@@ -13,12 +13,12 @@
 #include "Graphics.c"
 #include "Defines.h"
 
-char* board = "/shared_mem";
+char board[64];
 #define SEMAPHORE "/semaphore"
 
 void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, movement + Fire keys
   if(argc != 5 || strlen(argv[3]) != 4 || strlen(argv[4]) != 1 || strlen(argv[2]) != 1) {          ////// TODO: add a check for the board
-    printf("Usage: %s <board> <display_character> <movement_commands, eg:WASD> <fire>\n", argv[0]);
+    printf("Usage: %s <board: MAX 5 CHARS!> <display_character> <movement_commands, eg:WASD> <fire>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
   p->playerCharacter = argv[2][0];
@@ -30,8 +30,7 @@ void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, 
 
   p->playerControls.fire = argv[4][0];
 
-
-  strcpy(board, argv[1]);
+  strncpy(board, argv[1], strlen(argv[1]));
 }
 
 int main(int argc, char *argv[]) {
@@ -47,7 +46,6 @@ int main(int argc, char *argv[]) {
   sem_t *lock = sem_open(SEMAPHORE, O_CREAT, 0666, 1);
   if (lock == SEM_FAILED) {
     perror("sem_open");
-    sem_post(lock);
     exit(EXIT_FAILURE);
   }
   sem_wait(lock);
@@ -97,6 +95,8 @@ int main(int argc, char *argv[]) {
       map[i].Coordinates.PosX = i % MAP_SIZE_SIDE;
       map[i].Coordinates.PosY = i / MAP_SIZE_SIDE;
       map[i].value = ' ';
+
+      if(i == MAP_SIZE_SIDE * MAP_SIZE_SIDE / 2) map[i].value = WALL;
     }
   }
   else {
