@@ -1,5 +1,6 @@
+#ifndef LIBS
+#define LIBS
 #include <errno.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,19 +8,40 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <semaphore.h>
+#endif
 
+#include "Graphics.c"
 #include "Defines.h"
 
-void GetArgs(int argc, char *argv[]) {
-  
-}
-
-#define SHARED_MEM "/shared_mem"
+char* board = "/shared_mem";
 #define SEMAPHORE "/semaphore"
 
+void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, movement + Fire keys
+  if(argc != 5 || strlen(argv[3]) != 4 || strlen(argv[4]) != 1 || strlen(argv[2]) != 1) {          ////// TODO: add a check for the board
+    printf("Usage: %s <board> <display_character> <movement_commands, eg:WASD> <fire>\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+  p->playerCharacter = argv[2][0];
+
+  p->playerControls.up = argv[3][0];
+  p->playerControls.left = argv[3][1];
+  p->playerControls.down = argv[3][2];
+  p->playerControls.right = argv[3][3];
+
+  p->playerControls.fire = argv[4][0];
+
+
+  strcpy(board, argv[1]);
+}
+
 int main(int argc, char *argv[]) {
+  Player player;
+
   int is_creator = 0;
-  
+  int player_id = 1;
+
+  GetArgs(argc, argv, &player);
+
   //==================================================================================================================
   // semaphore:
   sem_t *lock = sem_open(SEMAPHORE, O_CREAT, 0666, 1);
@@ -31,7 +53,7 @@ int main(int argc, char *argv[]) {
   sem_wait(lock);
   //==================================================================================================================
 
-  int sharedMem_fd = shm_open(SHARED_MEM, O_RDWR | O_CREAT | O_EXCL, 0666);
+  int sharedMem_fd = shm_open(board, O_RDWR | O_CREAT | O_EXCL, 0666);
   if (sharedMem_fd == -1 && errno != EEXIST) { // if the maping wasnt created 
     perror("shm_open");
     sem_post(lock);
@@ -39,7 +61,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (sharedMem_fd == -1 && errno == EEXIST) { // if it wasnt created beacause it was there already
-    sharedMem_fd = shm_open(SHARED_MEM, O_RDWR, 0666);
+    sharedMem_fd = shm_open(board, O_RDWR, 0666);
     if (sharedMem_fd == -1) {
       perror("shm_open");
       sem_post(lock);
@@ -52,8 +74,8 @@ int main(int argc, char *argv[]) {
       sem_post(lock);
       exit(EXIT_FAILURE);
     }
-
     is_creator = 1;
+    player_id = 0;
   }  // bullshittery done to avoid truncating twice cause who knows (and to find the first process)
 
   //==================================================================================================================
@@ -66,7 +88,6 @@ int main(int argc, char *argv[]) {
   }
   Header *header = (Header *)base;
   Cell *map = (Cell *)(base + sizeof(Header));
-  
   close(sharedMem_fd);
 
   if(is_creator) {
@@ -87,9 +108,40 @@ int main(int argc, char *argv[]) {
     else header->CurrentNrPlayers++;
   }
 
-
+  if(player_id == 0) {
+    player.Coordinates.PosX = MAP_SIZE_SIDE / 4; player.Coordinates.PosY = MAP_SIZE_SIDE / 4; 
+    header->player[0] = player;
+  }
+  else {
+    player.Coordinates.PosX = 3 * MAP_SIZE_SIDE / 4; player.Coordinates.PosY = 3 * MAP_SIZE_SIDE / 4; 
+    header->player[1] = player;
+  }                               /// asta crapa dacabag mai multi playeri, imi trebuie alt check ca sa vad ce player e
   sem_post(lock);
   //==================================================================================================================
+  // if(is_creator) {
+  //   pid_t pid = fork();
+  //   if(pid == -1) {
+  //     perror("fork");
+  //     sem_post(lock);
+  //     exit(EXIT_FAILURE);
+  //   }
+  //   if(pid == 0) {
+  //     is_creator = 0;
+  initscr();
+  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 3, MAP_SIZE_SIDE + 3, 0, 0);
+  cbreak(); 
+  noecho();
+  keypad(stdscr, TRUE);
+  nodelay(stdscr, TRUE);
+  curs_set(0);
+
+  keypad(board_win, TRUE);
+  nodelay(board_win, TRUE); 
+
+  while(1)
+  Graphics(header, map, lock, board_win, player_id, &player);
+  //   }
+  // } /// init graphics
 
   /// cleanup
   /// delete memMap and semaphore files

@@ -1,3 +1,4 @@
-gcc main.c -o main -lncurses
-chmod main +x
-./main
+rm -f /dev/shm/shared_mem /dev/shm/sem.semaphore
+gcc main.c -o main -lncurses -lpthread -lrt 
+chmod +x main
+./main "$@"
