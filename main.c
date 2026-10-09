@@ -14,7 +14,6 @@
 #include "Defines.h"
 
 char board[64];
-#define SEMAPHORE "/semaphore"
 
 void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, movement + Fire keys
   if(argc != 5 || strlen(argv[3]) != 4 || strlen(argv[4]) != 1 || strlen(argv[2]) != 1) {          ////// TODO: add a check for the board
@@ -90,6 +89,7 @@ int main(int argc, char *argv[]) {
 
   if(is_creator) {
     header->CurrentNrPlayers = 1;
+    header->shutdown = 0;
 
     for (int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
       map[i].Coordinates.PosX = i % MAP_SIZE_SIDE;
@@ -138,8 +138,10 @@ int main(int argc, char *argv[]) {
   keypad(board_win, TRUE);
   nodelay(board_win, TRUE); 
 
-  while(1)
-  Graphics(header, map, lock, board_win, player_id, &player);
+  while(1) {
+    Graphics(header, map, lock, board_win, player_id, &player);
+    if(shutdownGLB) Quit(header, map, board_win, lock, board, player_id);
+  }
   //   }
   // } /// init graphics
 

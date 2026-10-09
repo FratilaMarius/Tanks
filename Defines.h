@@ -16,6 +16,8 @@
 
 #define NR_MAX_PLAYERS 2
 #define MAP_SIZE_SIDE 10 // nr of cells
+#define SHM_SIZE (sizeof(Header) + MAP_SIZE_SIDE * MAP_SIZE_SIDE * sizeof(Cell))
+#define SEMAPHORE "/semaphore"
 
 typedef enum {
   up,
@@ -56,6 +58,7 @@ typedef struct {
 typedef struct {
     int CurrentNrPlayers;
     Player player[NR_MAX_PLAYERS];
+    int shutdown;
 } Header;
 
 #endif 

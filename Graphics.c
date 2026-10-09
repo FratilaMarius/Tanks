@@ -17,7 +17,27 @@
 
 #define BORDER_OFFSET 1
 
-int shutdown = 0;
+int shutdownGLB = 0;
+
+void Quit(Header *header, Cell *map, WINDOW *board_win, sem_t *lock, const char *shm_name, int player_id) {
+    delwin(board_win);
+    endwin();
+
+    sem_wait(lock);
+    Vector2 p = header->player[player_id].Coordinates;
+    map[p.PosY * MAP_SIZE_SIDE + p.PosX].value = ' ';
+    int last; 
+    last = (--header->CurrentNrPlayers == 0) ? 1 : 0;
+    sem_post(lock);
+
+    munmap(header, SHM_SIZE);
+    sem_close(lock);
+
+    if (last) {
+        shm_unlink(shm_name);
+        sem_unlink(SEMAPHORE);
+    }
+}
 
 void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player) {
 
@@ -28,10 +48,13 @@ void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int pla
   else if (ch == player->playerControls.left && player->Coordinates.PosX > 0) player->LastMove = left;
   else if (ch == player->playerControls.right && player->Coordinates.PosX < MAP_SIZE_SIDE - 1) player->LastMove = right;
   else if (ch == player->playerControls.fire) player->LastMove = fire;
-  // else if (ch == 'q')
+  else if (ch == 27) /*ESC*/ shutdownGLB = 1;
   else player->LastMove = none;
 
   sem_wait(lock);
+  if(shutdownGLB) header->shutdown = 1;
+  if(header->shutdown) shutdownGLB = 1;
+
   switch (player->LastMove)
   {
   case up:
