@@ -70,7 +70,6 @@ static void ClearAround(Vector2 spawn, Cell *map) {
 }
 
 void FillMap(Vector2 spawn1, Vector2 spawn2, Cell *map, sem_t *lock) {
-  sem_wait(lock);
     int attempts = -1;
     do {
         attempts++;
@@ -82,9 +81,7 @@ void FillMap(Vector2 spawn1, Vector2 spawn2, Cell *map, sem_t *lock) {
 
     if (!CheckConnected(spawn1, spawn2, map))
         for (int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) map[i].value = ' ';
-  
-  sem_post(lock);
-}
+  }
 
 int shutdownGLB = 0;
 
@@ -106,6 +103,8 @@ void Quit(Header *header, Cell *map, WINDOW *board_win, sem_t *lock, const char 
         shm_unlink(shm_name);
         sem_unlink(SEMAPHORE);
     }
+
+    exit(0);
 }
 
 void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player) {
