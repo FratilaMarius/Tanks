@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <semaphore.h>
+#include <time.h>
 #endif
 
 #include "Graphics.c"
@@ -33,7 +34,13 @@ void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, 
 }
 
 int main(int argc, char *argv[]) {
+  srand(time(NULL));
   Player player;
+
+  Vector2 spawn1, spawn2;
+  spawn1.PosX = SPAWN1X;  spawn1.PosY = SPAWN1Y;
+  spawn2.PosX = SPAWN2X;  spawn2.PosY = SPAWN2Y;
+
 
   int is_creator = 0;
   int player_id = 1;
@@ -95,8 +102,6 @@ int main(int argc, char *argv[]) {
       map[i].Coordinates.PosX = i % MAP_SIZE_SIDE;
       map[i].Coordinates.PosY = i / MAP_SIZE_SIDE;
       map[i].value = ' ';
-
-      if(i == MAP_SIZE_SIDE * MAP_SIZE_SIDE / 2) map[i].value = WALL;
     }
   }
   else {
@@ -109,12 +114,16 @@ int main(int argc, char *argv[]) {
   }
 
   if(player_id == 0) {
-    player.Coordinates.PosX = MAP_SIZE_SIDE / 4; player.Coordinates.PosY = MAP_SIZE_SIDE / 4; 
+    player.Coordinates = spawn1;
     header->player[0] = player;
+    map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
+
+    FillMap(spawn1, spawn2, map, lock);
   }
   else {
-    player.Coordinates.PosX = 3 * MAP_SIZE_SIDE / 4; player.Coordinates.PosY = 3 * MAP_SIZE_SIDE / 4; 
+    player.Coordinates = spawn2;
     header->player[1] = player;
+    map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
   }                               /// asta crapa dacabag mai multi playeri, imi trebuie alt check ca sa vad ce player e
   sem_post(lock);
   //==================================================================================================================
