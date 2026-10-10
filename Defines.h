@@ -15,8 +15,21 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#define WALL '#' //// DO NOT CHANGE!!!!!!
+#define BULLET '.'
+#define ACTUAL_WALL ACS_BLOCK
+
+#define GAME_SPEED_MULTIPLIER 2
+int cyclesToPlayerUpdate = 3;
+int currentCycles = 0;
+
+#define STARTING_HP 100
 #define NR_MAX_PLAYERS 2
-#define MAP_SIZE_SIDE 10 // nr of cells
+#define NR_MAX_BULLETS 25
+#define BULLET_DMG_MAX 50
+#define BULLET_DMG_BASE 10
+
+#define MAP_SIZE_SIDE 20 // nr of cells
 #define WALL_CHANCE 15
 #define MAX_ATTEMPTS 50
 
@@ -41,7 +54,8 @@ typedef enum {
 
   fire,
   none
-} Direction;
+} Input;
+
 
 typedef struct {
     char up;
@@ -56,7 +70,6 @@ typedef struct {
 } Vector2;
 
 
-#define WALL '0'
 typedef struct {
     Vector2 Coordinates;
     char value;
@@ -66,13 +79,27 @@ typedef struct {
     Vector2 Coordinates;
     char playerCharacter;
     Controls playerControls;
-    Direction LastMove;
+    Input LastMove;
+    Input facingDir;
+
+    int hp;
 } Player;
+
+typedef struct
+{
+  Vector2 Coordinates;
+  Input facingDir;
+  int damage;
+} Bullet;
+
 
 typedef struct {
     int CurrentNrPlayers;
     Player player[NR_MAX_PLAYERS];
     int shutdown;
+
+    int bulletCount;
+    Bullet bulletStack[NR_MAX_BULLETS];
 } Header;
 
 #endif 

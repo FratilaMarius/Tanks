@@ -114,16 +114,24 @@ int main(int argc, char *argv[]) {
   }
 
   if(player_id == 0) {
+    FillMap(spawn1, spawn2, map, lock);
+
+    player.hp = STARTING_HP;
     player.Coordinates = spawn1;
+    player.facingDir = down;
     header->player[0] = player;
     map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
 
-    FillMap(spawn1, spawn2, map, lock);
+    header->bulletCount = 0;
+    player.LastMove = none;
   }
   else {
+    player.hp = STARTING_HP;
     player.Coordinates = spawn2;
     header->player[1] = player;
+    player.facingDir = up;
     map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
+    player.LastMove = none;
   }                               /// asta crapa dacabag mai multi playeri, imi trebuie alt check ca sa vad ce player e
   sem_post(lock);
   //==================================================================================================================
@@ -137,7 +145,9 @@ int main(int argc, char *argv[]) {
   //   if(pid == 0) {
   //     is_creator = 0;
   initscr();
-  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 3, MAP_SIZE_SIDE + 3, 0, 0);
+  set_escdelay(25);
+
+  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 2, MAP_SIZE_SIDE + 2, 5, 5);
   cbreak(); 
   noecho();
   keypad(stdscr, TRUE);

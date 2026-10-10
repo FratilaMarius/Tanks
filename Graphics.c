@@ -16,7 +16,6 @@
 #include <ncurses.h>
 #include "Defines.h"
 
-#define BORDER_OFFSET 1
 
 int CheckConnected(Vector2 spawn1, Vector2 spawn2, Cell *map) {
   Vector2 toCheck[MAP_SIZE_SIDE * MAP_SIZE_SIDE];
@@ -107,7 +106,110 @@ void Quit(Header *header, Cell *map, WINDOW *board_win, sem_t *lock, const char 
     exit(0);
 }
 
+void SpawnBullet(int posX, int posY, Input dir, Header *header) {
+  if(header->bulletCount >= NR_MAX_BULLETS) return;
+
+  Bullet newBUllet;
+  newBUllet.Coordinates.PosX = posX;
+  newBUllet.Coordinates.PosY = posY;
+  newBUllet.damage = rand() % BULLET_DMG_MAX;
+  newBUllet.facingDir = dir;
+
+  header->bulletStack[header->bulletCount] = newBUllet;
+  
+  header->bulletCount++;
+}
+
+void DestroyBullet(Header *header, Cell *map, int *index) {
+  header->bulletStack[*index] = header->bulletStack[header->bulletCount - 1];
+  header->bulletCount--;
+
+  (*index)--;
+}
+
+void DamagePlayer(Header *header, int j) {
+  header->player[j].hp -= BULLET_DMG_BASE + (rand() % BULLET_DMG_MAX);
+}
+
+void MoveBullets(Header *header, Cell *map) {
+  Bullet localBullet; // so i dont have to write prose every check
+  for(int i = 0; i < header->bulletCount; i++) {
+    localBullet = header->bulletStack[i];
+
+    if (localBullet.facingDir == none) {
+        DestroyBullet(header, map, &i);
+        continue;
+    }
+
+    int hit = 0;
+    for(int j = 0; j < header->CurrentNrPlayers; j++)
+      if(localBullet.Coordinates.PosX == header->player[j].Coordinates.PosX && localBullet.Coordinates.PosY == header->player[j].Coordinates.PosY) {//////////DAMAGE PLAYER!!!
+        header->bulletStack[i].facingDir = none;        
+        DamagePlayer(header, j);
+
+        hit = 1;
+      }
+      if(hit) continue;
+
+
+      switch(localBullet.facingDir)
+      {
+        case up:
+          if(localBullet.Coordinates.PosY - 1 < 0) {
+            DestroyBullet(header, map, &i);
+            break;
+          }
+          if(map[(localBullet.Coordinates.PosY - 1) * MAP_SIZE_SIDE + localBullet.Coordinates.PosX].value != WALL) {
+            header->bulletStack[i].Coordinates.PosY--;
+            break;
+          }
+          header->bulletStack[i].facingDir = none;
+        break;
+
+        case down:
+          if(localBullet.Coordinates.PosY + 1 >= MAP_SIZE_SIDE) {
+            DestroyBullet(header, map, &i);
+            break;
+          }
+          if(map[(localBullet.Coordinates.PosY + 1) * MAP_SIZE_SIDE + localBullet.Coordinates.PosX].value != WALL) {
+            header->bulletStack[i].Coordinates.PosY++;
+            break;
+          }
+          header->bulletStack[i].facingDir = none;
+        break;
+
+        case left:
+          if(localBullet.Coordinates.PosX - 1 < 0) {
+            DestroyBullet(header, map, &i);
+            break;
+          }
+          if(map[(localBullet.Coordinates.PosY) * MAP_SIZE_SIDE + (localBullet.Coordinates.PosX - 1)].value != WALL) {
+            header->bulletStack[i].Coordinates.PosX--;
+            break;
+          }
+          header->bulletStack[i].facingDir = none;
+        break;
+
+        case right:
+          if(localBullet.Coordinates.PosX + 1 >= MAP_SIZE_SIDE) {
+            DestroyBullet(header, map, &i);
+            break;
+          }
+          if(map[(localBullet.Coordinates.PosY) * MAP_SIZE_SIDE + (localBullet.Coordinates.PosX + 1)].value != WALL) {
+            header->bulletStack[i].Coordinates.PosX++;
+            break;
+          }
+          header->bulletStack[i].facingDir = none;
+        break;
+        
+        default:
+          break;
+      }
+    } 
+}
+
 void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player) {
+  int move = 0;
 
   int ch = wgetch(board_win);
   flushinp();
@@ -117,54 +219,109 @@ void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int pla
   else if (ch == player->playerControls.right && player->Coordinates.PosX < MAP_SIZE_SIDE - 1) player->LastMove = right;
   else if (ch == player->playerControls.fire) player->LastMove = fire;
   else if (ch == 27) /*ESC*/ shutdownGLB = 1;
-  else player->LastMove = none;
 
+  currentCycles++;
+  if(currentCycles == cyclesToPlayerUpdate) {
+    move = 1;
+    currentCycles = 0;
+  }
+
+  usleep(100000 / GAME_SPEED_MULTIPLIER); // 100ms * gamespeed
   sem_wait(lock);
+
   if(shutdownGLB) header->shutdown = 1;
   if(header->shutdown) shutdownGLB = 1;
 
-  switch (player->LastMove)
-  {
-  case up:
-      if(map[(player->Coordinates.PosY - 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value == ' ') player->Coordinates.PosY -= 1;
-    break;
+  if(move) {
+    
+    switch (player->LastMove)
+    {
+    case up:
+        if(map[(player->Coordinates.PosY - 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value == ' ') player->Coordinates.PosY -= 1;
+        player->facingDir = up;
+      break;
 
-  case down:
-      if(map[(player->Coordinates.PosY + 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value == ' ') player->Coordinates.PosY += 1;
-    break;
+    case down:
+        if(map[(player->Coordinates.PosY + 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value == ' ') player->Coordinates.PosY += 1;
+        player->facingDir = down;
+      break;
 
-  case left:
-      if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX - 1)].value == ' ') player->Coordinates.PosX -= 1;
-    break;
+    case left:
+        if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX - 1)].value == ' ') player->Coordinates.PosX -= 1;
+        player->facingDir = left;
+      break;
 
-  case right:
-      if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX + 1)].value == ' ') player->Coordinates.PosX += 1;
-    break;
+    case right:
+        if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX + 1)].value == ' ') player->Coordinates.PosX += 1;
+        player->facingDir = right;
+      break;
+    
+    case fire:
+        switch (player->facingDir)
+        {
+          case up:
+            if(player->Coordinates.PosY - 1 >= 0)
+              if(map[(player->Coordinates.PosY - 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value != WALL) {SpawnBullet(player->Coordinates.PosX, player->Coordinates.PosY-1, up, header);}
+            break;
+          case down:
+            if(player->Coordinates.PosY + 1 < MAP_SIZE_SIDE)
+              if(map[(player->Coordinates.PosY + 1) * MAP_SIZE_SIDE + player->Coordinates.PosX].value != WALL) {SpawnBullet(player->Coordinates.PosX, player->Coordinates.PosY+1, down, header);}
+            break;
+          case left:
+            if(player->Coordinates.PosX - 1 >= 0)
+              if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX - 1)].value != WALL) {SpawnBullet(player->Coordinates.PosX-1, player->Coordinates.PosY, left, header);}
+            break;      
+          case right:
+            if(player->Coordinates.PosX + 1 < MAP_SIZE_SIDE)
+              if(map[(player->Coordinates.PosY) * MAP_SIZE_SIDE + (player->Coordinates.PosX + 1)].value != WALL) {SpawnBullet(player->Coordinates.PosX+1, player->Coordinates.PosY, right, header);}
+            break;
+            
+          default:
+            break;
+        }
+      break;
 
+    default:
+      break;
+    }
 
-  default:
-    break;
+    map[header->player[player_id].Coordinates.PosY * MAP_SIZE_SIDE + header->player[player_id].Coordinates.PosX].value = ' ';
+    header->player[player_id].Coordinates.PosX = player->Coordinates.PosX;
+    header->player[player_id].Coordinates.PosY = player->Coordinates.PosY;
+    map[header->player[player_id].Coordinates.PosY * MAP_SIZE_SIDE + header->player[player_id].Coordinates.PosX].value = player->playerCharacter;
+
+    player->LastMove = none;
   }
 
-  map[header->player[player_id].Coordinates.PosY * MAP_SIZE_SIDE + header->player[player_id].Coordinates.PosX].value = ' ';
-  header->player[player_id].Coordinates.PosX = player->Coordinates.PosX;
-  header->player[player_id].Coordinates.PosY = player->Coordinates.PosY;
-  map[header->player[player_id].Coordinates.PosY * MAP_SIZE_SIDE + header->player[player_id].Coordinates.PosX].value = player->playerCharacter;
+  if(player_id == 0)
+  MoveBullets(header, map);
 
 
-
-
+  erase();
   werase(board_win);
   box(board_win, 0, 0);
   for(int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
+    if(map[i].value == WALL) {
+      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, ACTUAL_WALL);
+      continue;
+    }
     mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
   }
+  for(int i = 0; i < header->bulletCount; i++) {
+    char tex = (header->bulletStack[i].facingDir == none) ? '*' : BULLET;
+    mvwaddch(board_win, header->bulletStack[i].Coordinates.PosY + 1, header->bulletStack[i].Coordinates.PosX + 1, tex);
+  }
+  mvprintw(0, 0, " Hp: %d\n Player Character: %c\n Player id: %d", header->player[player_id].hp, header->player[player_id].playerCharacter, player_id);
 
-  
-  wrefresh(board_win);  
+  wnoutrefresh(stdscr);
+  wnoutrefresh(board_win);
+
+  doupdate(); 
+
+  player->hp = header->player[player_id].hp;
+  header->player[player_id] = *player;
 
   sem_post(lock);
-  usleep(50000);
 }
 
 #endif
