@@ -17,6 +17,7 @@
 
 #define WALL '#' //// DO NOT CHANGE!!!!!!
 #define BULLET '.'
+#define EXPLOSION '*'
 #define ACTUAL_WALL ACS_BLOCK
 
 #define GAME_SPEED_MULTIPLIER 2

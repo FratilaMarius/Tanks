@@ -155,7 +155,12 @@ int main(int argc, char *argv[]) {
   curs_set(0);
 
   keypad(board_win, TRUE);
-  nodelay(board_win, TRUE); 
+  nodelay(board_win, TRUE);
+  start_color();
+  init_pair(3, COLOR_GREEN, COLOR_GREEN);
+  init_pair(4, COLOR_RED, COLOR_BLUE);
+  init_pair(5, COLOR_BLUE, COLOR_RED);
+  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
 
   while(1) {
     Graphics(header, map, lock, board_win, player_id, &player);

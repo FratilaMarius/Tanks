@@ -302,14 +302,31 @@ void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int pla
   box(board_win, 0, 0);
   for(int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
     if(map[i].value == WALL) {
+      wattron(board_win, COLOR_PAIR(3));
       mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, ACTUAL_WALL);
+      wattroff(board_win, COLOR_PAIR(3));
       continue;
     }
+    if(map[i].value == header->player[0].playerCharacter) {
+      wattron(board_win, COLOR_PAIR(4));
+      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
+      wattroff(board_win, COLOR_PAIR(4));
+      continue;
+    }
+    if(map[i].value == header->player[1].playerCharacter) {
+      wattron(board_win, COLOR_PAIR(5));
+      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
+      wattroff(board_win, COLOR_PAIR(5));
+      continue;
+    }
+      
     mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
   }
   for(int i = 0; i < header->bulletCount; i++) {
-    char tex = (header->bulletStack[i].facingDir == none) ? '*' : BULLET;
+    char tex = (header->bulletStack[i].facingDir == none) ? EXPLOSION : BULLET;
+    wattron(board_win, COLOR_PAIR(6));
     mvwaddch(board_win, header->bulletStack[i].Coordinates.PosY + 1, header->bulletStack[i].Coordinates.PosX + 1, tex);
+    wattroff(board_win, COLOR_PAIR(6));
   }
   mvprintw(0, 0, " Hp: %d\n Player Character: %c\n Player id: %d", header->player[player_id].hp, header->player[player_id].playerCharacter, player_id);
 
