@@ -9,13 +9,13 @@
 #include <sys/mman.h>
 #include <semaphore.h>
 #include <time.h>
+#include <signal.h>
 #endif
 
 #ifndef GRAPHICS_C
 #define GRAPHICS_C
 #include <ncurses.h>
 #include "Defines.h"
-
 
 int CheckConnected(Vector2 spawn1, Vector2 spawn2, Cell *map) {
   Vector2 toCheck[MAP_SIZE_SIDE * MAP_SIZE_SIDE];
@@ -82,7 +82,58 @@ void FillMap(Vector2 spawn1, Vector2 spawn2, Cell *map, sem_t *lock) {
         for (int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) map[i].value = ' ';
   }
 
-int shutdownGLB = 0;
+void DrawBigText(const char *text, int color) {
+
+  int startY = (LINES) / 2;
+  int startX = (COLS) / 2 - strlen(text) / 2;
+
+  attron(COLOR_PAIR(color));
+
+  mvprintw(startY, startX, "%s", text);
+
+  attroff(COLOR_PAIR(color));
+}
+
+void SetupGame(Header *header, Cell *map, sem_t *lock, Player *player, Vector2 spawn1, Vector2 spawn2, int player_id) { // to be called with locked semaphore  
+  aux_incr_wins = 0;
+
+  if(player_id == 0) {
+    header->gameOver--;
+    rounds++;
+
+    for (int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
+      map[i].Coordinates.PosX = i % MAP_SIZE_SIDE;
+      map[i].Coordinates.PosY = i / MAP_SIZE_SIDE;
+      map[i].value = ' ';
+    }
+
+    FillMap(spawn1, spawn2, map, lock);
+
+    player->hp = STARTING_HP;
+    player->Coordinates = spawn1;
+    player->facingDir = down;
+    header->player[0] = *player;
+    map[player->Coordinates.PosY * MAP_SIZE_SIDE + player->Coordinates.PosX].value = player->playerCharacter;
+
+    header->bulletCount = 0;
+    player->LastMove = none;
+  }
+  else {
+    header->gameOver--;
+
+    player->hp = STARTING_HP;
+    player->Coordinates = spawn2;
+    header->player[1] = *player;
+    player->facingDir = up;
+    map[player->Coordinates.PosY * MAP_SIZE_SIDE + player->Coordinates.PosX].value = player->playerCharacter;
+    player->LastMove = none;
+  }  
+  if(header->restartVotes == 0) header->restartVotes = 0;
+
+  
+  /// asta crapa dacabag mai multi playeri, imi trebuie alt check ca sa vad ce player e    
+}
+
 
 void Quit(Header *header, Cell *map, WINDOW *board_win, sem_t *lock, const char *shm_name, int player_id) {
     delwin(board_win);
@@ -208,8 +259,59 @@ void MoveBullets(Header *header, Cell *map) {
     } 
 }
 
-void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player) {
+int localHasVoted = 0; 
+
+void DrawEndScreen(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player, Vector2 spawn1, Vector2 spawn2) {
+  if(winner != 0 && aux_incr_wins == 0) {
+    wins++;
+    aux_incr_wins = 1;
+  }
+  erase();  
+  werase(board_win);  
+
+  if (winner == 1) {
+      DrawBigText("You Win! (Press Space to Restart)", 8);
+  } else {
+      DrawBigText("You Lose! (Press Space to Restart)", 7);
+  }
+  
+  wnoutrefresh(stdscr);
+  // wnoutrefresh(board_win);
+  doupdate(); 
+  
+  int ch = getch();
+    if(ch == ' ' && localHasVoted == 0) {
+    sem_wait(lock);
+    header->restartVotes++;
+    sem_post(lock);
+    localHasVoted = 1; 
+  }
+  
+  sem_wait(lock);
+  if(localHasVoted == 1 && header->restartVotes >= header->CurrentNrPlayers) {
+    localHasVoted = 0;
+    
+    SetupGame(header, map, lock, player, spawn1, spawn2, player_id);
+  }
+  sem_post(lock);
+}
+
+
+void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player, Vector2 spawn1, Vector2 spawn2) {
   int move = 0;
+
+  if(player->hp <= 0) {
+    winner = 0;
+    header->gameOver = 2;
+  }
+
+  if(header->gameOver > 0) {
+    DrawEndScreen(header, map, lock, board_win, player_id, player, spawn1, spawn2);
+    usleep(100000 / GAME_SPEED_MULTIPLIER);
+    return;  
+  }
+  winner = 1;
+
 
   int ch = wgetch(board_win);
   flushinp();
@@ -296,49 +398,71 @@ void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int pla
   if(player_id == 0)
   MoveBullets(header, map);
 
+  //////////////////////////////////////////////////////////////////////////////////////////// Redndering:
+  //
+  localHeader = *header;
+  player->hp = localHeader.player[player_id].hp;
+  localHeader.player[player_id] = *player;
+  for(int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) localMap[i] = map[i]; 
+
+  sem_post(lock);
 
   erase();
   werase(board_win);
   box(board_win, 0, 0);
   for(int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
-    if(map[i].value == WALL) {
+    if(localMap[i].value == WALL) {
       wattron(board_win, COLOR_PAIR(3));
-      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, ACTUAL_WALL);
+      mvwaddch(board_win, localMap[i].Coordinates.PosY + 1, localMap[i].Coordinates.PosX + 1, ACTUAL_WALL);
       wattroff(board_win, COLOR_PAIR(3));
       continue;
     }
-    if(map[i].value == header->player[0].playerCharacter) {
+    if(localMap[i].value == localHeader.player[0].playerCharacter) {
       wattron(board_win, COLOR_PAIR(4));
-      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
+      mvwaddch(board_win, localMap[i].Coordinates.PosY + 1, localMap[i].Coordinates.PosX + 1, localMap[i].value);
       wattroff(board_win, COLOR_PAIR(4));
       continue;
     }
-    if(map[i].value == header->player[1].playerCharacter) {
+    if(localMap[i].value == localHeader.player[1].playerCharacter) {
       wattron(board_win, COLOR_PAIR(5));
-      mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
+      mvwaddch(board_win, localMap[i].Coordinates.PosY + 1, localMap[i].Coordinates.PosX + 1, localMap[i].value);
       wattroff(board_win, COLOR_PAIR(5));
       continue;
     }
       
-    mvwaddch(board_win, map[i].Coordinates.PosY + 1, map[i].Coordinates.PosX + 1, map[i].value);
+    mvwaddch(board_win, localMap[i].Coordinates.PosY + 1, localMap[i].Coordinates.PosX + 1, localMap[i].value);
   }
-  for(int i = 0; i < header->bulletCount; i++) {
-    char tex = (header->bulletStack[i].facingDir == none) ? EXPLOSION : BULLET;
+  for(int i = 0; i < localHeader.bulletCount; i++) {
+    char tex;
+    switch(localHeader.bulletStack[i].facingDir) {
+      case up:
+      case down:
+        tex = VERT_BULLET;
+      break;
+
+      case left:
+      case right:
+        tex = HORZ_BULLET;
+      break;
+
+      case none:
+        tex = EXPLOSION;
+      break;
+
+      default:
+        tex = BULLET;
+      break;
+    }
     wattron(board_win, COLOR_PAIR(6));
-    mvwaddch(board_win, header->bulletStack[i].Coordinates.PosY + 1, header->bulletStack[i].Coordinates.PosX + 1, tex);
+    mvwaddch(board_win, localHeader.bulletStack[i].Coordinates.PosY + 1, localHeader.bulletStack[i].Coordinates.PosX + 1, tex);
     wattroff(board_win, COLOR_PAIR(6));
   }
-  mvprintw(0, 0, " Hp: %d\n Player Character: %c\n Player id: %d", header->player[player_id].hp, header->player[player_id].playerCharacter, player_id);
+  mvprintw(0, 0, " Hp: %d\n Player Character: %c\n Player id: %d\n Round Wins: %d", localHeader.player[player_id].hp, localHeader.player[player_id].playerCharacter, player_id, wins);
 
   wnoutrefresh(stdscr);
   wnoutrefresh(board_win);
 
   doupdate(); 
-
-  player->hp = header->player[player_id].hp;
-  header->player[player_id] = *player;
-
-  sem_post(lock);
 }
 
 #endif

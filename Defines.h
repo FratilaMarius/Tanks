@@ -9,26 +9,37 @@
 #include <sys/mman.h>
 #include <semaphore.h>
 #include <time.h>
+#include <signal.h>
 #endif
 
 ///////////////////////////////////////////////////////////////
 #ifndef DEFINES_H
 #define DEFINES_H
 
+int shutdownGLB = 0;
+
 #define WALL '#' //// DO NOT CHANGE!!!!!!
+#define ACTUAL_WALL ACS_BLOCK
+
 #define BULLET '.'
 #define EXPLOSION '*'
-#define ACTUAL_WALL ACS_BLOCK
+#define VERT_BULLET '|'
+#define HORZ_BULLET '_'
 
 #define GAME_SPEED_MULTIPLIER 2
 int cyclesToPlayerUpdate = 3;
 int currentCycles = 0;
 
+int winner = 1;
+int wins = 0;
+int aux_incr_wins = 0;
+int rounds = 0;
+
 #define STARTING_HP 100
 #define NR_MAX_PLAYERS 2
 #define NR_MAX_BULLETS 25
-#define BULLET_DMG_MAX 50
-#define BULLET_DMG_BASE 10
+#define BULLET_DMG_MAX 15
+#define BULLET_DMG_BASE 5
 
 #define MAP_SIZE_SIDE 20 // nr of cells
 #define WALL_CHANCE 15
@@ -75,6 +86,7 @@ typedef struct {
     Vector2 Coordinates;
     char value;
 } Cell;
+Cell localMap[MAP_SIZE_SIDE * MAP_SIZE_SIDE];
 
 typedef struct {
     Vector2 Coordinates;
@@ -98,9 +110,13 @@ typedef struct {
     int CurrentNrPlayers;
     Player player[NR_MAX_PLAYERS];
     int shutdown;
+    int gameOver;
+    int restartVotes;
+
 
     int bulletCount;
     Bullet bulletStack[NR_MAX_BULLETS];
 } Header;
+Header localHeader;
 
 #endif 

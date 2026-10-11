@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <semaphore.h>
 #include <time.h>
+#include <signal.h>
 #endif
 
 #include "Graphics.c"
@@ -30,10 +31,43 @@ void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, 
 
   p->playerControls.fire = argv[4][0];
 
-  strncpy(board, argv[1], strlen(argv[1]));
+  strncpy(board, argv[1], sizeof(board) - 1);
+}
+
+WINDOW *SetupWindow() {
+  initscr();
+  set_escdelay(25);
+
+  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 2, MAP_SIZE_SIDE + 2, 5, 5);
+  cbreak(); 
+  noecho();
+  keypad(stdscr, TRUE);
+  nodelay(stdscr, TRUE);
+  curs_set(0);
+
+  keypad(board_win, TRUE);
+  nodelay(board_win, TRUE);
+  start_color();
+  init_pair(3, COLOR_GREEN, COLOR_GREEN);
+  init_pair(4, COLOR_RED, COLOR_BLUE);
+  init_pair(5, COLOR_BLUE, COLOR_RED);
+  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
+  init_pair(7, COLOR_RED, COLOR_BLACK); // loser
+  init_pair(8, COLOR_GREEN, COLOR_BLACK); // winner
+
+  attron(A_BOLD);             
+  wattron(board_win, A_BOLD); 
+
+  return board_win;
+}
+
+void handle_sigint(int sig) {
+    shutdownGLB = 1; 
 }
 
 int main(int argc, char *argv[]) {
+  signal(SIGINT, handle_sigint);
+
   srand(time(NULL));
   Player player;
 
@@ -42,7 +76,6 @@ int main(int argc, char *argv[]) {
   spawn2.PosX = SPAWN2X;  spawn2.PosY = SPAWN2Y;
 
 
-  int is_creator = 0;
   int player_id = 1;
 
   GetArgs(argc, argv, &player);
@@ -78,7 +111,6 @@ int main(int argc, char *argv[]) {
       sem_post(lock);
       exit(EXIT_FAILURE);
     }
-    is_creator = 1;
     player_id = 0;
   }  // bullshittery done to avoid truncating twice cause who knows (and to find the first process)
 
@@ -94,45 +126,22 @@ int main(int argc, char *argv[]) {
   Cell *map = (Cell *)(base + sizeof(Header));
   close(sharedMem_fd);
 
-  if(is_creator) {
+  if(player_id == 0) {
     header->CurrentNrPlayers = 1;
     header->shutdown = 0;
-
-    for (int i = 0; i < MAP_SIZE_SIDE * MAP_SIZE_SIDE; i++) {
-      map[i].Coordinates.PosX = i % MAP_SIZE_SIDE;
-      map[i].Coordinates.PosY = i / MAP_SIZE_SIDE;
-      map[i].value = ' ';
-    }
   }
   else {
     if(header->CurrentNrPlayers >= NR_MAX_PLAYERS) {
       printf("Max players reached\n");
-      sem_post(lock);
+      munmap(header, SHM_SIZE);
+      sem_post(lock); 
       exit(EXIT_FAILURE);
     }
     else header->CurrentNrPlayers++;
   }
 
-  if(player_id == 0) {
-    FillMap(spawn1, spawn2, map, lock);
+  SetupGame(header, map, lock, &player, spawn1, spawn2, player_id);
 
-    player.hp = STARTING_HP;
-    player.Coordinates = spawn1;
-    player.facingDir = down;
-    header->player[0] = player;
-    map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
-
-    header->bulletCount = 0;
-    player.LastMove = none;
-  }
-  else {
-    player.hp = STARTING_HP;
-    player.Coordinates = spawn2;
-    header->player[1] = player;
-    player.facingDir = up;
-    map[player.Coordinates.PosY * MAP_SIZE_SIDE + player.Coordinates.PosX].value = player.playerCharacter;
-    player.LastMove = none;
-  }                               /// asta crapa dacabag mai multi playeri, imi trebuie alt check ca sa vad ce player e
   sem_post(lock);
   //==================================================================================================================
   // if(is_creator) {
@@ -144,26 +153,11 @@ int main(int argc, char *argv[]) {
   //   }
   //   if(pid == 0) {
   //     is_creator = 0;
-  initscr();
-  set_escdelay(25);
 
-  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 2, MAP_SIZE_SIDE + 2, 5, 5);
-  cbreak(); 
-  noecho();
-  keypad(stdscr, TRUE);
-  nodelay(stdscr, TRUE);
-  curs_set(0);
-
-  keypad(board_win, TRUE);
-  nodelay(board_win, TRUE);
-  start_color();
-  init_pair(3, COLOR_GREEN, COLOR_GREEN);
-  init_pair(4, COLOR_RED, COLOR_BLUE);
-  init_pair(5, COLOR_BLUE, COLOR_RED);
-  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
+  WINDOW *board_win = SetupWindow();
 
   while(1) {
-    Graphics(header, map, lock, board_win, player_id, &player);
+    Graphics(header, map, lock, board_win, player_id, &player, spawn1, spawn2);
     if(shutdownGLB) Quit(header, map, board_win, lock, board, player_id);
   }
   //   }
