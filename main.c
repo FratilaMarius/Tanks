@@ -12,58 +12,12 @@
 #include <signal.h>
 #endif
 
-#include "Graphics.c"
+#include "Graphics.h"
+#include "GameLogic.h"
+#include "MathLogic.h"
+#include "Utility.h"
 #include "Defines.h"
 
-char board[64];
-
-void GetArgs(int argc, char *argv[], Player *p) {  // Board, display_character, movement + Fire keys
-  if(argc != 5 || strlen(argv[3]) != 4 || strlen(argv[4]) != 1 || strlen(argv[2]) != 1) {          ////// TODO: add a check for the board
-    printf("Usage: %s <board: MAX 5 CHARS!> <display_character> <movement_commands, eg:WASD> <fire>\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-  p->playerCharacter = argv[2][0];
-
-  p->playerControls.up = argv[3][0];
-  p->playerControls.left = argv[3][1];
-  p->playerControls.down = argv[3][2];
-  p->playerControls.right = argv[3][3];
-
-  p->playerControls.fire = argv[4][0];
-
-  strncpy(board, argv[1], sizeof(board) - 1);
-}
-
-WINDOW *SetupWindow() {
-  initscr();
-  set_escdelay(25);
-
-  WINDOW *board_win = newwin(MAP_SIZE_SIDE + 2, MAP_SIZE_SIDE + 2, 5, 5);
-  cbreak(); 
-  noecho();
-  keypad(stdscr, TRUE);
-  nodelay(stdscr, TRUE);
-  curs_set(0);
-
-  keypad(board_win, TRUE);
-  nodelay(board_win, TRUE);
-  start_color();
-  init_pair(3, COLOR_GREEN, COLOR_GREEN);
-  init_pair(4, COLOR_RED, COLOR_BLUE);
-  init_pair(5, COLOR_BLUE, COLOR_RED);
-  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
-  init_pair(7, COLOR_RED, COLOR_BLACK); // loser
-  init_pair(8, COLOR_GREEN, COLOR_BLACK); // winner
-
-  attron(A_BOLD);             
-  wattron(board_win, A_BOLD); 
-
-  return board_win;
-}
-
-void handle_sigint(int sig) {
-    shutdownGLB = 1; 
-}
 
 int main(int argc, char *argv[]) {
   signal(SIGINT, handle_sigint);

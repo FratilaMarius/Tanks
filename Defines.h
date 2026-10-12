@@ -16,7 +16,10 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-int shutdownGLB = 0;
+// map / graphics
+#define MAP_SIZE_SIDE 20 // nr of cells
+#define WALL_CHANCE 15
+#define MAX_ATTEMPTS 50
 
 #define WALL '#' //// DO NOT CHANGE!!!!!!
 #define ACTUAL_WALL ACS_BLOCK
@@ -26,37 +29,46 @@ int shutdownGLB = 0;
 #define VERT_BULLET '|'
 #define HORZ_BULLET '_'
 
-#define GAME_SPEED_MULTIPLIER 2
-int cyclesToPlayerUpdate = 3;
-int currentCycles = 0;
 
-int winner = 1;
-int wins = 0;
-int aux_incr_wins = 0;
-int rounds = 0;
+// wining
+extern int winner;
+extern int wins;
+extern int aux_incr_wins;
+extern int rounds;
 
-#define STARTING_HP 100
+
+// game mechanics consts
 #define NR_MAX_PLAYERS 2
+#define STARTING_HP 100
+
+#define SPAWN1X (MAP_SIZE_SIDE / 4)
+#define SPAWN1Y (MAP_SIZE_SIDE / 4)
+#define SPAWN2X (3 * MAP_SIZE_SIDE / 4)
+#define SPAWN2Y (3 * MAP_SIZE_SIDE / 4)
+
 #define NR_MAX_BULLETS 25
 #define BULLET_DMG_MAX 15
 #define BULLET_DMG_BASE 5
 
-#define MAP_SIZE_SIDE 20 // nr of cells
-#define WALL_CHANCE 15
-#define MAX_ATTEMPTS 50
 
-#define SPAWN1X (MAP_SIZE_SIDE / 4)
-#define SPAWN1Y (MAP_SIZE_SIDE / 4)
-
-#define SPAWN2X (3 * MAP_SIZE_SIDE / 4)
-#define SPAWN2Y (3 * MAP_SIZE_SIDE / 4)
-
+// management
 #define SHM_SIZE (sizeof(Header) + MAP_SIZE_SIDE * MAP_SIZE_SIDE * sizeof(Cell))
 #define SEMAPHORE "/semaphore"
 
-int RNG_Hit(const int chance) {
-  return ((rand() % 100) < chance) ? 1 : 0;
-}
+extern int shutdownGLB;
+
+#define GAME_SPEED_MULTIPLIER 2
+extern int cyclesToPlayerUpdate;
+extern int currentCycles;
+
+extern int localHasVoted; 
+
+
+
+typedef struct {
+    int PosX;
+    int PosY;
+} Vector2;
 
 typedef enum {
   up,
@@ -68,7 +80,6 @@ typedef enum {
   none
 } Input;
 
-
 typedef struct {
     char up;
     char down;
@@ -76,17 +87,12 @@ typedef struct {
     char right;
     char fire;
 } Controls;
-typedef struct {
-    int PosX;
-    int PosY;
-} Vector2;
-
 
 typedef struct {
     Vector2 Coordinates;
     char value;
 } Cell;
-Cell localMap[MAP_SIZE_SIDE * MAP_SIZE_SIDE];
+extern Cell localMap[MAP_SIZE_SIDE * MAP_SIZE_SIDE];
 
 typedef struct {
     Vector2 Coordinates;
@@ -98,8 +104,7 @@ typedef struct {
     int hp;
 } Player;
 
-typedef struct
-{
+typedef struct {
   Vector2 Coordinates;
   Input facingDir;
   int damage;
@@ -107,16 +112,17 @@ typedef struct
 
 
 typedef struct {
-    int CurrentNrPlayers;
-    Player player[NR_MAX_PLAYERS];
-    int shutdown;
-    int gameOver;
-    int restartVotes;
+  int CurrentNrPlayers;
+  Player player[NR_MAX_PLAYERS];
 
+  int shutdown;
+  int gameOver;
+  int restartVotes;
 
-    int bulletCount;
-    Bullet bulletStack[NR_MAX_BULLETS];
+  int bulletCount;
+  Bullet bulletStack[NR_MAX_BULLETS];
 } Header;
-Header localHeader;
+extern Header localHeader;
 
+extern char board[64];
 #endif 
