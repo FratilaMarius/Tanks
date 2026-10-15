@@ -176,8 +176,7 @@ void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int pla
     player->LastMove = none;
   }
 
-  if(player_id == 0)
-  MoveBullets(header, map);
+  if(player_id == 0) MoveBullets(header, map);
 
   //////////////////////////////////////////////////////////////////////////////////////////// Redndering:
   //
