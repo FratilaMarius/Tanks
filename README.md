@@ -4,6 +4,8 @@ A two-player tank duel for the terminal, written in C.
 
 Each player runs **their own process** of the same program. The processes share the game board through **POSIX shared memory** and coordinate with a **named semaphore**. The interface is drawn with **ncurses**.
 
+<img width="1920" height="905" alt="image" src="https://github.com/user-attachments/assets/1fa3aa26-37b2-4249-a1cd-42ad16d5fef6" />
+
 
 ## Features
 
