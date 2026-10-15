@@ -1,4 +1,4 @@
-# Tanks
+# Tanks!
 
 A two-player tank duel for the terminal, written in C.
 
@@ -14,18 +14,23 @@ Each player runs **their own process** of the same program. The processes share 
 - Round-win counter
 - Clean shutdown that removes the shared memory and the semaphore
 
-## Requirements
+
+## Requirements (for playing)
+- A TMUX terminal of at least 27 x 27 characters (80 x 30 or larger is recommended), syncronize-panes setting on
+
+
+
+## Requirements (for recompiling)
 
 - Linux (developed on Ubuntu). It uses POSIX shared memory and named semaphores, which live under `/dev/shm`.
 - GCC and the ncurses development headers
-- A terminal of at least 27 x 27 characters (80 x 30 or larger is recommended)
-
 ```bash
 sudo apt install build-essential libncurses-dev
 ```
+- Under ShellScripts you will find a file that rebuilds the game for you.
 
 ## Run
-
+Inside a terminal: './Tanks <board name> <your player character> <your 4 movement keys> <your shooting key>'
 Start one instance per player. **Both must use the same board name.**
 
 ```bash
@@ -35,13 +40,6 @@ Start one instance per player. **Both must use the same board name.**
 # terminal 2 (joins the game, becomes player 1)
 ./tanks arena B ijkl h
 ```
-
-| # | Argument | Meaning |
-|---|----------|---------|
-| 1 | `board` | Name of the game. It is used as the shared-memory name (visible as `/dev/shm/<board>`). |
-| 2 | `character` | One character that represents your tank. |
-| 3 | `movement` | Four characters in the order **up, left, down, right**. `wasd` means W = up, A = left, S = down, D = right. |
-| 4 | `fire` | One character. |
 
 The first process to start creates the game and generates the map. The second one joins it. A third one is refused with `Max players reached`.
 
@@ -53,8 +51,6 @@ A terminal only receives keystrokes while it has focus, so two plain windows can
 2. Run one instance per pane.
 3. Turn on broadcasting: `Ctrl-b`, then `:setw synchronize-panes on`.
 
-Every key you type now goes to both panes. Each process ignores keys that are not its own controls, so the two players must use different keys. Also run `tmux set -sg escape-time 0` so that ESC reacts instantly.
-
 ## Controls
 
 | Key | Action |
@@ -64,16 +60,8 @@ Every key you type now goes to both panes. Each process ignores keys that are no
 | `SPACE` (end screen) | vote to restart; **both** players must press it |
 | `ESC` | quit; this ends the game for both players |
 
-## Rules
 
-- The board is 20 x 20 cells. Walls block both tanks and bullets.
-- Each player starts with 100 HP. A bullet hit deals 5 to 19 damage.
-- A bullet appears in the cell in front of your tank and flies in a straight line until it leaves the board, hits a wall (it explodes), or hits a tank (damage plus explosion).
-- When a player's HP reaches 0, that player loses and the other wins. Both screens show the result.
-- When both players press `SPACE`, a new random map is generated, HP is reset and the game starts again. The round-win counter is kept.
-- Tanks move at most once every 150 ms, while bullets advance one cell every 50 ms.
-
-## How it works
+## Technical stuff
 
 ```
  terminal 1                            terminal 2
@@ -135,35 +123,16 @@ These can be changed in `Defines.h`:
 | `cyclesToPlayerUpdate` | 3 | frames between tank moves |
 | `BULLET`, `VERT_BULLET`, `HORZ_BULLET`, `EXPLOSION` | `.`, `\|`, `_`, `*` | characters used for bullets |
 
-## Assignment requirements and where they are met
-
-| Requirement | Implementation |
-|-------------|----------------|
-| Two players on the same keyboard | Two processes, driven together with `tmux` broadcasting |
-| Tanks are letters identifying the player | `character` argument, drawn in its own color |
-| Board with walls (maze) | Random walls with a guaranteed path between spawns |
-| Tank moves up / down / left / right | Movement keys from the `movement` argument |
-| Projectile fired on command, in the direction of movement | Fire key; bullet uses the tank's facing direction |
-| Projectile moves (animated) until it hits a tank, a wall or the edge | `MoveBullets`, one cell per frame |
-| Hit tank loses life; player at 0 loses | `DamagePlayer`, end screen |
-| Board is a matrix in shared memory | `Header` plus `Cell map[]` in one `shm_open` / `mmap` segment |
-| One process per player, same program, arguments on the command line | `./tanks <board> <character> <movement> <fire>` |
-| Positions protected by semaphores | Named POSIX semaphore around every access |
-| ncurses interface | `Graphics.c` |
-
 ## Troubleshooting
 
 - **`Max players reached` right after a crash, or the game hangs at startup.** A crashed run leaves its shared memory and semaphore behind. Remove them by running the cleanup.sh script.'
-
 - **Keys do nothing in the second window.** Only the focused terminal receives keys. See "Playing on one keyboard".
 - **Crash after rebuilding with a changed struct.** An old segment of a different size is still in `/dev/shm`. Remove it as above.
 
 ## Limitations
 
-- Exactly two players.
+- Exactly two players, though this would be trivial to change (only some consts in Defines).
 - Linux only, because of `/dev/shm` and POSIX IPC.
 - The semaphore name is fixed, so run one game at a time.
-- Bullets do not collide with each other.
-
 
 Author: *Fratila Marius*
