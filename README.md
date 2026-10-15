@@ -11,7 +11,7 @@ Each player runs **their own process** of the same program. The processes share 
 
 - Two players, one process each, one shared board
 - Random walls, with a guaranteed path between the two spawn points
-- Animated bullets that stop at walls, tanks and the edge of the board
+- Animated bullets that stop at walls, Tanks! and the edge of the board
 - HP and damage, a win/lose screen, and a restart that both players must agree to
 - Round-win counter
 - Clean shutdown that removes the shared memory and the semaphore
@@ -32,15 +32,19 @@ sudo apt install build-essential libncurses-dev
 - Under ShellScripts you will find a file that rebuilds the game for you.
 
 ## Run
-Inside a terminal: './Tanks <board name> <your player character> <your 4 movement keys> <your shooting key>'
+
+```bash
+./Tanks! <board name> <your player character> <your 4 movement keys> <your shooting key>
+```
+
 Start one instance per player. **Both must use the same board name.**
 
 ```bash
 # terminal 1 (creates the game, becomes player 0)
-./tanks arena A wasd f
+./TanksF! arena A wasd f
 
 # terminal 2 (joins the game, becomes player 1)
-./tanks arena B ijkl h
+./Tanks! arena B ijkl h
 ```
 
 The first process to start creates the game and generates the map. The second one joins it. A third one is refused with `Max players reached`.
@@ -68,7 +72,7 @@ A terminal only receives keystrokes while it has focus, so two plain windows can
 ```
  terminal 1                            terminal 2
  +-----------------+                   +-----------------+
- | ./tanks arena   |                   | ./tanks arena   |
+ | ./Tanks! arena   |                   | ./Tanks! arena   |
  | player 0        |                   | player 1        |
  | (creator)       |                   | (joiner)        |
  +--------+--------+                   +--------+--------+
@@ -127,13 +131,13 @@ These can be changed in `Defines.h`:
 
 ## Troubleshooting
 
-- **`Max players reached` right after a crash, or the game hangs at startup.** A crashed run leaves its shared memory and semaphore behind. Remove them by running the cleanup.sh script.'
+- **`Max players reached` right after a crash, or the game hangs at startup.** A crashed run leaves its shared memory and semaphore behind. Remove them by running the cleanup.sh script.
 - **Keys do nothing in the second window.** Only the focused terminal receives keys. See "Playing on one keyboard".
 - **Crash after rebuilding with a changed struct.** An old segment of a different size is still in `/dev/shm`. Remove it as above.
 
 ## Limitations
 
-- Exactly two players, though this would be trivial to change (only some consts in Defines).
+- Exactly two players. Supporting more would need changes to the spawn points, SetupGame and the rendering.
 - Linux only, because of `/dev/shm` and POSIX IPC.
 - The semaphore name is fixed, so run one game at a time.
 
