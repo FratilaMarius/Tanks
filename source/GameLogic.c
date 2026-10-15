@@ -2,7 +2,6 @@
 
 
 void SetupGame(Header *header, Cell *map, sem_t *lock, Player *player, Vector2 spawn1, Vector2 spawn2, int player_id) { // to be called with locked semaphore  
-  aux_incr_wins = 0;
 
   if(player_id == 0) {
     header->gameOver--;
@@ -35,7 +34,7 @@ void SetupGame(Header *header, Cell *map, sem_t *lock, Player *player, Vector2 s
     map[player->Coordinates.PosY * MAP_SIZE_SIDE + player->Coordinates.PosX].value = player->playerCharacter;
     player->LastMove = none;
   }  
-  if(header->restartVotes == 0) header->restartVotes = 0;
+  if(header->gameOver <= 0) header->restartVotes = 0;
 
   // shi gon break if there s more than 2 players  
 }

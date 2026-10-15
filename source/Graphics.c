@@ -43,9 +43,12 @@ void DrawBigText(const char *text, int color) {
 
 
 void DrawEndScreen(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player, Vector2 spawn1, Vector2 spawn2) {
-  if(winner != 0 && aux_incr_wins == 0) {
-    wins++;
-    aux_incr_wins = 1;
+  if(!inEndScreen) {
+    inEndScreen = 1;
+    sem_wait(lock);
+    winner = header->player[player_id].hp > 0;
+    sem_post(lock);
+    if(winner) wins++;
   }
   erase();  
   werase(board_win);  
@@ -70,7 +73,7 @@ void DrawEndScreen(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, in
   
   sem_wait(lock);
   if(localHasVoted == 1 && header->restartVotes >= header->CurrentNrPlayers) {
-    localHasVoted = 0;
+    localHasVoted = 2;
     
     SetupGame(header, map, lock, player, spawn1, spawn2, player_id);
   }
@@ -81,18 +84,17 @@ void DrawEndScreen(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, in
 void Graphics(Header *header, Cell *map, sem_t *lock, WINDOW *board_win, int player_id, Player *player, Vector2 spawn1, Vector2 spawn2) {
   int move = 0;
 
-  if(player->hp <= 0) {
-    winner = 0;
-    header->gameOver = 2;
-  }
+  sem_wait(lock);
+  if(player->hp <= 0 && header->gameOver <= 0) header->gameOver = 2;
+  sem_post(lock);
 
   if(header->gameOver > 0) {
     DrawEndScreen(header, map, lock, board_win, player_id, player, spawn1, spawn2);
     usleep(100000 / GAME_SPEED_MULTIPLIER);
-    return;  
+      return;
   }
-  winner = 1;
-
+  inEndScreen = 0;
+  localHasVoted = 0;
 
   int ch = wgetch(board_win);
   flushinp();

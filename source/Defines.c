@@ -4,7 +4,7 @@
 // wining
 int winner = 1;
 int wins = 0;
-int aux_incr_wins = 0;
+int inEndScreen = 0;
 int rounds = 0;
 
 

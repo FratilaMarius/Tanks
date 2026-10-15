@@ -33,7 +33,7 @@
 // wining
 extern int winner;
 extern int wins;
-extern int aux_incr_wins;
+extern int inEndScreen;
 extern int rounds;
 
 
